@@ -1,4 +1,4 @@
-const BLOCKER_KEYWORDS = ["block", "blocked", "issue", "delay", "problem", "stuck"];
+const BLOCKER_KEYWORDS = ["block", "blocked", "issue", "delay", "problem", "stuck", "api"];
 
 const getAnswerText = (answer) => {
   if (typeof answer === "string") {
@@ -20,7 +20,7 @@ export const detectBlockerKeywords = (answers = []) => {
   const matchedKeywords = [];
 
   answers.forEach((answer) => {
-    const text = getAnswerText(answer).toLowerCase();
+    const text = getAnswerText(answer).toLowerCase().trim();
 
     if (!text) {
       return;

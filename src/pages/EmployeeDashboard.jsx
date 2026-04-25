@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  Bell,
   CalendarCheck,
   CheckCircle2,
   ChevronRight,
@@ -10,7 +11,7 @@ import {
   Sun,
   Zap,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
@@ -61,6 +62,219 @@ function getStoredUserName() {
   }
 }
 
+function formatNotificationTime(dateValue) {
+  if (!dateValue) {
+    return 'Just now';
+  }
+
+  const timestamp = new Date(dateValue).getTime();
+
+  if (Number.isNaN(timestamp)) {
+    return 'Just now';
+  }
+
+  const diffMs = Date.now() - timestamp;
+  const minuteMs = 60 * 1000;
+  const hourMs = 60 * minuteMs;
+  const dayMs = 24 * hourMs;
+
+  if (diffMs < minuteMs) {
+    return 'Just now';
+  }
+
+  if (diffMs < hourMs) {
+    return `${Math.floor(diffMs / minuteMs)}m ago`;
+  }
+
+  if (diffMs < dayMs) {
+    return `${Math.floor(diffMs / hourMs)}h ago`;
+  }
+
+  return new Date(dateValue).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function NotificationBell({ isDarkMode }) {
+  const navigate = useNavigate();
+  const dropdownRef = useRef(null);
+  const [notifications, setNotifications] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await api.get('/notifications/my');
+        setNotifications(response.data || []);
+      } catch (error) {
+        console.error(error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const handleOutsideClick = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isOpen]);
+
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+  const unreadBadge = unreadCount > 9 ? '9+' : unreadCount;
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      if (!notification.isRead) {
+        await api.patch(`/notifications/${notification._id || notification.id}/read`);
+        setNotifications((currentNotifications) =>
+          currentNotifications.map((item) =>
+            (item._id || item.id) === (notification._id || notification.id)
+              ? { ...item, isRead: true }
+              : item,
+          ),
+        );
+      }
+    } catch (error) {
+      console.error(error.message);
+    } finally {
+      setIsOpen(false);
+      navigate(`/checkin/${notification.assignmentId}`);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    setIsUpdating(true);
+
+    try {
+      await api.patch('/notifications/read-all');
+      setNotifications((currentNotifications) =>
+        currentNotifications.map((notification) => ({
+          ...notification,
+          isRead: true,
+        })),
+      );
+    } catch (error) {
+      console.error(error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen((currentValue) => !currentValue)}
+        aria-label="Open notifications"
+        aria-expanded={isOpen}
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 transition hover:border-indigo-200 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-500 dark:hover:text-indigo-300"
+      >
+        <Bell className="h-4 w-4" />
+        {unreadCount > 0 ? (
+          <span className="absolute -right-0.5 -top-0.5 flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black leading-none text-white shadow-sm">
+            {unreadBadge}
+          </span>
+        ) : null}
+      </button>
+
+      <div
+        className={`absolute right-0 top-12 w-80 origin-top-right rounded-2xl border shadow-xl transition duration-150 ${
+          isOpen
+            ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+            : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
+        } ${
+          isDarkMode
+            ? 'border-slate-700 bg-slate-900 text-white shadow-slate-950/40'
+            : 'border-slate-200 bg-white text-slate-950 shadow-slate-900/10'
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+          <div>
+            <p className="text-sm font-black">Notifications</p>
+            <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+              {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+            </p>
+          </div>
+
+          {unreadCount > 0 ? (
+            <button
+              type="button"
+              onClick={handleMarkAllAsRead}
+              disabled={isUpdating}
+              className="text-xs font-bold text-indigo-600 transition hover:text-indigo-500 disabled:cursor-not-allowed disabled:text-slate-400 dark:text-indigo-300 dark:hover:text-indigo-200"
+            >
+              {isUpdating ? 'Updating...' : 'Mark all read'}
+            </button>
+          ) : null}
+        </div>
+
+        <div className="max-h-96 overflow-y-auto py-2">
+          {isLoading ? (
+            <div className="px-4 py-6 text-sm font-bold text-slate-500 dark:text-slate-400">
+              Loading notifications...
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="px-4 py-6 text-sm font-bold text-slate-500 dark:text-slate-400">
+              No notifications
+            </div>
+          ) : (
+            notifications.map((notification) => (
+              <button
+                key={notification._id || notification.id}
+                type="button"
+                onClick={() => handleNotificationClick(notification)}
+                className={`flex w-full items-start gap-3 px-4 py-3 text-left transition ${
+                  notification.isRead
+                    ? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
+                    : 'bg-rose-50/60 hover:bg-rose-50 dark:bg-rose-500/10 dark:hover:bg-rose-500/15'
+                }`}
+              >
+                <span
+                  className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                    notification.isRead
+                      ? 'bg-slate-300 dark:bg-slate-600'
+                      : 'bg-rose-500'
+                  }`}
+                />
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-sm ${
+                      notification.isRead
+                        ? 'font-semibold text-slate-700 dark:text-slate-200'
+                        : 'font-black text-slate-950 dark:text-white'
+                    }`}
+                  >
+                    {notification.message}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {formatNotificationTime(notification.createdAt)}
+                  </p>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TopNavbar({ isDarkMode, onToggleDarkMode, displayName }) {
   const navigate = useNavigate();
   const avatarLabel = displayName.trim().charAt(0).toUpperCase() || 'U';
@@ -82,6 +296,7 @@ function TopNavbar({ isDarkMode, onToggleDarkMode, displayName }) {
         </button>
 
         <div className="flex items-center gap-3">
+          <NotificationBell isDarkMode={isDarkMode} />
           <ThemeToggle
             isDarkMode={isDarkMode}
             onToggleDarkMode={onToggleDarkMode}
@@ -124,7 +339,7 @@ const navigationItems = [
 function Sidebar() {
   return (
     <>
-      <aside className="hidden w-[220px] shrink-0 border-r border-slate-200 bg-slate-50/80 px-4 py-6 lg:block dark:border-slate-800 dark:bg-slate-900/50">
+      <aside className="hidden w-55 shrink-0 border-r border-slate-200 bg-slate-50/80 px-4 py-6 lg:block dark:border-slate-800 dark:bg-slate-900/50">
         <div className="mb-8">
           <p className="text-sm font-black text-indigo-600 dark:text-indigo-300">
             Employee Portal

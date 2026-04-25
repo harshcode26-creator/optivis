@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   LoaderCircle,
   Lock,
+  MessageSquareText,
   Send,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -66,6 +67,24 @@ function formatSubmittedDate(dateValue) {
   })}`;
 }
 
+function formatReviewedDate(dateValue) {
+  if (!dateValue) {
+    return 'Review date unavailable';
+  }
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Review date unavailable';
+  }
+
+  return `Reviewed on ${date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })}`;
+}
+
 function CheckInPage() {
   const { id: assignmentId } = useParams();
   const navigate = useNavigate();
@@ -92,13 +111,25 @@ function CheckInPage() {
       setLoading(true);
       setErrorMessage('');
 
+      const token =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('token')
+          : null;
+      const authConfig = token
+        ? {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        : undefined;
+
       try {
         let response;
 
         try {
-          response = await api.get(`/assignments/${assignmentId}`);
+          response = await api.get(`/assignments/${assignmentId}`, authConfig);
         } catch (primaryError) {
-          response = await api.get(`/assignments/my/${assignmentId}`);
+          response = await api.get(`/assignments/my/${assignmentId}`, authConfig);
 
           if (primaryError?.status && primaryError.status !== 404) {
             console.warn(primaryError.message);
@@ -204,6 +235,8 @@ function CheckInPage() {
   const subtitle = isSubmitted
     ? 'This check-in has already been submitted and is now read-only.'
     : 'Answer each question before submitting your check-in.';
+  const isReviewed = assignment?.reviewStatus === 'REVIEWED';
+  const managerFeedback = assignment?.adminComment?.trim() || 'No comment provided';
 
   const handleAnswerChange = (questionIndex, value) => {
     setAnswers((currentAnswers) =>
@@ -221,11 +254,25 @@ function CheckInPage() {
     setSubmitting(true);
     setErrorMessage('');
 
+    const token =
+      typeof window !== 'undefined' ? window.localStorage.getItem('token') : null;
+    const authConfig = token
+      ? {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      : undefined;
+
     try {
-      await api.post('/assignments/submit', {
-        assignmentId,
-        answers,
-      });
+      await api.post(
+        '/assignments/submit',
+        {
+          assignmentId,
+          answers,
+        },
+        authConfig,
+      );
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setShowConfirm(false);
@@ -373,6 +420,30 @@ function CheckInPage() {
                       )}
                     </section>
                   ))}
+
+                  {isReviewed ? (
+                    <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-6 shadow-sm dark:border-amber-400/30 dark:bg-amber-500/10">
+                      <div className="mb-4 flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                            <MessageSquareText className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                              Manager Feedback
+                            </h2>
+                            <p className="mt-1 text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                              {formatReviewedDate(assignment?.reviewedAt)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-amber-200/80 bg-white/80 px-4 py-3 text-sm leading-6 text-slate-700 dark:border-amber-400/20 dark:bg-slate-900/70 dark:text-slate-200">
+                        {managerFeedback}
+                      </div>
+                    </section>
+                  ) : null}
 
                   {errorMessage ? (
                     <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">

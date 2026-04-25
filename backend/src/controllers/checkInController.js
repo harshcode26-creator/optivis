@@ -1,6 +1,7 @@
 import Answer from "../models/Answer.js";
 import Assignment from "../models/Assignment.js";
 import CheckIn from "../models/CheckIn.js";
+import Notification from "../models/Notification.js";
 import User from "../models/User.js";
 import detectBlockerKeywords from "../services/blocker.service.js";
 import calculateSentimentScore from "../services/sentiment.service.js";
@@ -159,12 +160,14 @@ export const getInsights = async (req, res) => {
     const { workspaceId } = req.user;
 
     const [
+      totalCheckInsCreated,
       totalAssignments,
       submittedCount,
       reviewedCount,
       assignmentsWithBlockers,
       assignmentsWithSentiment,
     ] = await Promise.all([
+      CheckIn.countDocuments({ workspaceId }),
       Assignment.countDocuments({ workspaceId }),
       Assignment.countDocuments({ workspaceId, status: "SUBMITTED" }),
       Assignment.countDocuments({ workspaceId, reviewStatus: "REVIEWED" }),
@@ -181,9 +184,17 @@ export const getInsights = async (req, res) => {
     const blockerSummary = assignmentsWithBlockers
       .flatMap((assignment) => assignment.blockerTags || [])
       .reduce((summary, keyword) => {
-        summary[keyword] = (summary[keyword] || 0) + 1;
+        const normalizedKeyword = String(keyword || "").trim().toLowerCase();
+
+        if (!normalizedKeyword) {
+          return summary;
+        }
+
+        summary[normalizedKeyword] = (summary[normalizedKeyword] || 0) + 1;
         return summary;
       }, {});
+
+    const blockers = Object.keys(blockerSummary);
 
     const totalSentiment = assignmentsWithSentiment.reduce(
       (sum, assignment) => sum + (assignment.sentimentScore || 0),
@@ -194,9 +205,11 @@ export const getInsights = async (req, res) => {
       assignmentsWithSentiment.length > 0 ? totalSentiment / assignmentsWithSentiment.length : 0;
 
     const basicInsights = {
+      totalCheckInsCreated,
       totalAssignments,
       submittedCount,
       reviewedCount,
+      blockers,
       blockerSummary,
       averageSentiment,
     };
@@ -231,6 +244,7 @@ export const getInsights = async (req, res) => {
 
     return res.status(200).json({
       ...basicInsights,
+      summary: llmInsights.summary,
       aiSummary: llmInsights.summary,
       aiSentiment: llmInsights.sentiment,
       aiBlockers: llmInsights.blockers,
@@ -247,7 +261,7 @@ export const getAssignmentDetails = async (req, res) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  if (req.user.role !== "ADMIN") {
+  if (!["ADMIN", "EMPLOYEE"].includes(req.user.role)) {
     return res.status(403).json({ message: "Forbidden" });
   }
 
@@ -256,15 +270,24 @@ export const getAssignmentDetails = async (req, res) => {
   }
 
   try {
+    console.log("USER:", req.user);
+
     const assignment = await Assignment.findOne({
       _id: assignmentId,
       workspaceId: req.user.workspaceId,
     })
       .populate("userId", "name email")
-      .populate("checkInId", "title");
+      .populate("checkInId", "title questions");
 
     if (!assignment) {
       return res.status(404).json({ message: "Assignment not found" });
+    }
+
+    if (
+      req.user.role === "EMPLOYEE" &&
+      assignment.userId?._id?.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
     const answers = await Answer.find({ assignmentId: assignment._id }).sort({ updatedAt: -1 });
@@ -297,7 +320,7 @@ export const reviewAssignment = async (req, res) => {
     const assignment = await Assignment.findOne({
       _id: assignmentId,
       workspaceId: req.user.workspaceId,
-    });
+    }).populate("checkInId", "title");
 
     if (!assignment) {
       return res.status(404).json({ message: "Assignment not found" });
@@ -307,6 +330,12 @@ export const reviewAssignment = async (req, res) => {
     assignment.reviewedAt = new Date();
     assignment.adminComment = adminComment;
     await assignment.save();
+
+    await Notification.create({
+      userId: assignment.userId,
+      message: `Your check-in "${assignment.checkInId?.title || "Check-in"}" was reviewed`,
+      assignmentId: assignment._id,
+    });
 
     return res.status(200).json({ message: "Assignment reviewed successfully" });
   } catch (error) {
@@ -357,7 +386,9 @@ export const submitCheckIn = async (req, res) => {
     }
 
     const answerTexts = answers.map(({ answer }) => answer);
-    const blockerTags = detectBlockerKeywords(answerTexts);
+    const blockerTags = detectBlockerKeywords(answerTexts).map((tag) =>
+      String(tag || "").trim().toLowerCase()
+    );
     const sentimentScore = calculateSentimentScore(answerTexts);
 
     assignment.status = "SUBMITTED";

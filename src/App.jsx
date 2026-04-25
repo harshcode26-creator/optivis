@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminCheckIns from './pages/AdminCheckIns';
 import AdminDashboard from './pages/AdminDashboard';
 import CheckInPage from './pages/CheckInPage';
 import CreateCheckIn from './pages/CreateCheckIn';
@@ -15,7 +16,7 @@ function DashboardRoute() {
   const user = getUserFromToken();
 
   if (user?.role === 'ADMIN') {
-    return <AdminDashboard />;
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return <EmployeeDashboard />;
@@ -48,7 +49,39 @@ function App() {
         path="/create-checkin"
         element={
           <ProtectedRoute>
+            <Navigate to="/admin/create-checkin" replace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/create-checkin"
+        element={
+          <ProtectedRoute>
             <CreateCheckIn />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/check-ins"
+        element={
+          <ProtectedRoute>
+            <AdminCheckIns />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/assignment/:id"
+        element={
+          <ProtectedRoute>
+            <ReviewPage />
           </ProtectedRoute>
         }
       />
