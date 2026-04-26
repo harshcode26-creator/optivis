@@ -29,6 +29,10 @@ function CreateWorkspace() {
     });
 
     localStorage.setItem('token', response.data.token);
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('name', response.data.user.name || '');
+    }
     const workspaceSlug = response.data.workspaceSlug;
     const inviteLink = `${window.location.origin}/join?workspace=${workspaceSlug}`;
 

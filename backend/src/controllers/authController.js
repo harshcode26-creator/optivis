@@ -24,6 +24,18 @@ const createToken = (user) => {
 
 const isMissing = (value) => !value || !String(value).trim();
 
+const buildAuthPayload = (user, extra = {}) => ({
+  token: createToken(user),
+  user: {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    workspaceId: user.workspaceId,
+  },
+  ...extra,
+});
+
 export const createWorkspace = async (req, res) => {
   const { name, email, password, workspaceName } = req.body;
 
@@ -53,11 +65,10 @@ export const createWorkspace = async (req, res) => {
     workspace.createdBy = user._id;
     await workspace.save();
 
-    return res.status(201).json({
-      token: createToken(user),
+    return res.status(201).json(buildAuthPayload(user, {
       workspaceSlug: workspace.slug,
       joinCode: workspace.joinCode,
-    });
+    }));
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: error.message });
@@ -92,7 +103,7 @@ export const joinWorkspace = async (req, res) => {
       workspaceId: workspace._id,
     });
 
-    return res.status(201).json({ token: createToken(user) });
+    return res.status(201).json(buildAuthPayload(user));
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -118,7 +129,7 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    return res.status(200).json({ token: createToken(user) });
+    return res.status(200).json(buildAuthPayload(user));
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
