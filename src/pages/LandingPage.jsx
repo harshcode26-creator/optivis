@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import adminDashboardDark from '../assets/adminDashboard-dark.png';
+import adminDashboardLight from '../assets/adminDashboard-light.png';
 
 const navItems = [
   { label: 'Features', href: '#features' },
@@ -155,7 +157,7 @@ function Navbar({ isDarkMode, onToggleDarkMode }) {
   );
 }
 
-function Hero() {
+function Hero({ isDarkMode }) {
   const navigate = useNavigate();
 
   return (
@@ -194,51 +196,15 @@ function Hero() {
           </button>
         </div>
 
-        <div className="mx-auto mt-14 max-w-5xl rounded-xl border border-slate-800/10 bg-slate-950 p-3 text-left shadow-2xl shadow-slate-900/20 dark:border-indigo-500/25 dark:shadow-indigo-700/20">
-          <div className="overflow-hidden rounded-lg bg-[#101820]">
-            <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-rose-400" />
-                <span className="h-3 w-3 rounded-full bg-amber-300" />
-                <span className="h-3 w-3 rounded-full bg-emerald-400" />
-              </div>
-              <span className="text-xs font-semibold text-slate-400">
-                Team Pulse Dashboard
-              </span>
-            </div>
-            <div className="grid gap-4 p-4 sm:grid-cols-[1.2fr_0.8fr] sm:p-6">
-              <div className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
-                <div className="mb-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-indigo-300">
-                      Engineering Health
-                    </p>
-                    <p className="mt-2 text-3xl font-black text-white">85%</p>
-                  </div>
-                  <BarChart3 className="h-8 w-8 text-indigo-300" />
-                </div>
-                <div className="space-y-3">
-                  {[82, 68, 91].map((value) => (
-                    <div key={value} className="h-3 rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-indigo-500"
-                        style={{ width: `${value}%` }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="grid gap-4">
-                {['12 blockers', '48 wins', '4.8 sentiment'].map((stat) => (
-                  <div
-                    key={stat}
-                    className="rounded-lg border border-white/10 bg-white/[0.04] p-4 text-sm font-bold text-white"
-                  >
-                    {stat}
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div className="mx-auto mt-14 max-w-5xl">
+          <div className="rounded-xl border border-slate-200 bg-white/80 p-3 shadow-2xl shadow-slate-900/10 backdrop-blur-sm dark:border-indigo-500/25 dark:bg-slate-900/60 dark:shadow-indigo-700/20">
+            
+            <img
+              src={isDarkMode ? adminDashboardDark : adminDashboardLight}
+              alt="Dashboard Preview"
+              className="w-full rounded-lg shadow-xl transition duration-500 hover:scale-[1.01]"
+            />
+
           </div>
         </div>
       </div>
@@ -531,7 +497,7 @@ function LandingPage() {
         onToggleDarkMode={() => setIsDarkMode((currentMode) => !currentMode)}
       />
       <main>
-        <Hero />
+        <Hero isDarkMode={isDarkMode} />
         <Features />
         <Insights />
         <Steps />
