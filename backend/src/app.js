@@ -24,4 +24,8 @@ app.get("/api/health", (req, res) => {
   res.json({ message: "API running" });
 });
 
+app.get("/", (req, res) => {
+  res.send("Optivis API is running 🚀");
+});
+
 export default app;
