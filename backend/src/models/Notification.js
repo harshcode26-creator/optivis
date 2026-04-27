@@ -9,6 +9,11 @@ const notificationSchema = new Schema({
     required: true,
     index: true,
   },
+  type: {
+    type: String,
+    enum: ["CHECKIN_SUBMITTED", "CHECKIN_REVIEWED"],
+    required: true,
+  },
   message: {
     type: String,
     required: true,

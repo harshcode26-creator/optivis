@@ -1,5 +1,27 @@
 import Notification from "../models/Notification.js";
 
+export const getNotifications = async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (req.user.role !== "ADMIN") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  try {
+    const notifications = await Notification.find({
+      userId: req.user.userId || req.user._id,
+    })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    return res.status(200).json(notifications);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 export const getMyNotifications = async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -11,6 +33,45 @@ export const getMyNotifications = async (req, res) => {
     }).sort({ createdAt: -1 });
 
     return res.status(200).json(notifications);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const markNotificationRead = async (req, res) => {
+  const { notificationId } = req.body;
+
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (req.user.role !== "ADMIN") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  if (!notificationId) {
+    return res.status(400).json({ message: "notificationId is required" });
+  }
+
+  try {
+    const notification = await Notification.findOneAndUpdate(
+      {
+        _id: notificationId,
+        userId: req.user.userId || req.user._id,
+      },
+      {
+        isRead: true,
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    return res.status(200).json(notification);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

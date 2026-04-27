@@ -390,6 +390,7 @@ export const reviewAssignment = async (req, res) => {
 
     await Notification.create({
       userId: assignment.userId,
+      type: "CHECKIN_REVIEWED",
       message: `Your check-in "${assignment.checkInId?.title || "Check-in"}" was reviewed`,
       assignmentId: assignment._id,
     });
@@ -453,6 +454,22 @@ export const submitCheckIn = async (req, res) => {
     assignment.sentimentScore = sentimentScore;
     assignment.submittedAt = new Date();
     await assignment.save();
+
+    const admins = await User.find({
+      workspaceId: req.user.workspaceId,
+      role: "ADMIN",
+    }).select("_id");
+
+    await Promise.all(
+      admins.map((admin) =>
+        Notification.create({
+          userId: admin._id,
+          type: "CHECKIN_SUBMITTED",
+          assignmentId: assignment._id,
+          message: "New check-in submitted",
+        })
+      )
+    );
 
     return res.status(200).json({ message: "Check-in submitted successfully" });
   } catch (error) {
