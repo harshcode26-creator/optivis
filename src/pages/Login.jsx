@@ -15,6 +15,11 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [summaryStats, setSummaryStats] = useState({
+    totalCheckIns: 0,
+    totalWorkspaces: 0,
+    totalUsers: 0,
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,6 +31,42 @@ function Login() {
     if (stored) {
       setIsDarkMode(stored === 'dark');
     }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSummaryStats = async () => {
+      try {
+        const response = await api.get('/stats/overview');
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSummaryStats({
+          totalCheckIns: response.data?.totalCompletedCheckIns ?? 0,
+          totalWorkspaces: response.data?.totalWorkspaces ?? 0,
+          totalUsers: response.data?.totalUsers ?? 0,
+        });
+      } catch (_requestError) {
+        if (!isMounted) {
+          return;
+        }
+
+        setSummaryStats({
+          totalCheckIns: 0,
+          totalWorkspaces: 0,
+          totalUsers: 0,
+        });
+      }
+    };
+
+    loadSummaryStats();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSubmit = async (event) => {
@@ -205,9 +246,9 @@ function Login() {
             />
 
             <div className="mt-8 flex gap-8 text-sm font-semibold">
-              <p>7 check-ins completed</p>
+              <p>{summaryStats.totalCheckIns} check-ins completed</p>
               <p className="border-l border-white/30 pl-8">
-                1 workspace created • 2 users
+                {summaryStats.totalWorkspaces} workspace{summaryStats.totalWorkspaces > 1 ? 's' : ''} created • {summaryStats.totalUsers} users
               </p>
             </div>
 
