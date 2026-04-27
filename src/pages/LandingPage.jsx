@@ -109,7 +109,11 @@ function Navbar({ isDarkMode, onToggleDarkMode }) {
           onClick={() => navigate('/')}
           className="shrink-0 text-base font-extrabold tracking-tight text-slate-950 dark:text-white"
         >
-          15Five MERN
+          <img
+            src={isDarkMode ? "/images/optivis-logo-dark.png" : "/images/optivis-logo.png"}
+            alt="Optivis Logo"
+            className={isDarkMode ? "h-8 w-auto" : "h-10 w-auto"}
+          />
         </button>
 
         <div className="hidden items-center gap-8 md:flex">
@@ -163,10 +167,10 @@ function Hero({ isDarkMode }) {
   return (
     <section className="overflow-hidden bg-[#f8fafc] px-4 pb-16 pt-16 sm:px-6 sm:pb-24 sm:pt-24 lg:px-8 dark:bg-[#050817]">
       <div className="mx-auto max-w-6xl text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-xs font-bold text-indigo-600 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300">
+        {/* <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-xs font-bold text-indigo-600 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300">
           <Zap className="h-3.5 w-3.5" />
           Version 2.0 is now live
-        </div>
+        </div> */}
 
         <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-black leading-tight tracking-tight text-slate-950 sm:text-6xl lg:text-7xl dark:text-white">
           Understand Your Team.{' '}
@@ -366,7 +370,7 @@ function CTA() {
           Start building a better team today
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-6 text-indigo-100 sm:text-base">
-          Join thousands of teams using 15Five MERN to scale their culture and
+          Join thousands of teams using Optivis to scale their culture and
           performance.
         </p>
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
@@ -453,14 +457,18 @@ function FAQ() {
   );
 }
 
-function Footer() {
+function Footer({ isDarkMode }) {
   return (
     <footer className="border-t border-slate-200 bg-white px-4 py-10 sm:px-6 lg:px-8 dark:border-slate-800 dark:bg-[#050817]">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-lg font-black text-slate-950 dark:text-white">15Five MERN</p>
+          <img
+            src={isDarkMode ? "/images/optivis-logo-dark.png" : "/images/optivis-logo.png"}
+            alt="Optivis Logo"
+            className="h-8 w-auto"
+          />
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Simple check-ins for high-performing teams.
+            Optivis helps teams track performance and gain clarity every week.
           </p>
         </div>
         <div className="flex flex-wrap gap-x-7 gap-y-3 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -504,7 +512,7 @@ function LandingPage() {
         <CTA />
         <FAQ />
       </main>
-      <Footer />
+      <Footer isDarkMode={isDarkMode} />
     </div>
   );
 }
