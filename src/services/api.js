@@ -4,6 +4,46 @@ const api = axios.create({
   baseURL: 'https://optivis.onrender.com/api',
 });
 
+let activeColdStarts = 0;
+
+function dispatchColdStartEvent(eventName) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(new Event(eventName));
+}
+
+function withColdStartHandling(promise) {
+  if (typeof window === 'undefined') {
+    return promise;
+  }
+
+  let timeoutTriggered = false;
+  const timeoutId = window.setTimeout(() => {
+    timeoutTriggered = true;
+    activeColdStarts += 1;
+
+    if (activeColdStarts === 1) {
+      dispatchColdStartEvent('cold-start');
+    }
+  }, 3000);
+
+  return promise.finally(() => {
+    window.clearTimeout(timeoutId);
+
+    if (!timeoutTriggered) {
+      return;
+    }
+
+    activeColdStarts = Math.max(0, activeColdStarts - 1);
+
+    if (activeColdStarts === 0) {
+      dispatchColdStartEvent('cold-start-resolved');
+    }
+  });
+}
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -38,5 +78,9 @@ api.interceptors.response.use(
     });
   }
 );
+
+const originalRequest = api.request.bind(api);
+
+api.request = (...args) => withColdStartHandling(originalRequest(...args));
 
 export default api;
