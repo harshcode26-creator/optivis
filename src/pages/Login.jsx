@@ -94,7 +94,11 @@ function Login() {
 
               {/* LOGO */}
               <div className="mb-8 text-center">
-                <h2 className="text-xl font-black text-indigo-400">15Five</h2>
+                <img
+                  src={isDarkMode ? "/images/optivis-logo-dark.png" : "/images/optivis-logo.png"}
+                  alt="Optivis Logo"
+                  className={isDarkMode ? "mx-auto h-9 w-auto" : "mx-auto h-12 w-auto"}
+                />
                 <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-slate-500">
                   Employee Growth & Feedback
                 </p>

@@ -292,7 +292,11 @@ function TopNavbar({ isDarkMode, onToggleDarkMode, displayName }) {
           onClick={() => navigate('/dashboard')}
           className="text-base font-extrabold tracking-tight text-slate-950 dark:text-white"
         >
-          15Five MERN
+        <img
+          src={isDarkMode ? "/images/optivis-logo-dark.png" : "/images/optivis-logo.png"}
+          alt="Optivis Logo"
+          className={isDarkMode ? "mx-auto h-9 w-auto" : "mx-auto h-12 w-auto"}
+        />
         </button>
 
         <div className="flex items-center gap-3">

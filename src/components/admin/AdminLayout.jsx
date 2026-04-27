@@ -76,26 +76,28 @@ const navigationItems = [
   },
 ];
 
-function SidebarContent({ onNavigate }) {
+function SidebarContent({ onNavigate, isDarkMode  }) {
+  const navigate = useNavigate();
+
   const displayName = getStoredUserName() || 'Admin User';
   const avatarLabel = displayName.trim().charAt(0).toUpperCase() || 'A';
 
   return (
     <div className="flex h-full flex-col">
       <div className="mb-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] text-sm font-black text-white shadow-lg shadow-indigo-500/25">
-            15
-          </div>
-          <div>
-            <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
-              15Five
-            </p>
-            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">
-              Admin Console
-            </p>
-          </div>
-        </div>
+        <button
+          onClick={() => navigate("/admin/dashboard")}
+          className="flex flex-col items-start gap-1"
+        >
+          <img
+            src={isDarkMode ? "/images/optivis-logo-dark.png" : "/images/optivis-logo.png"}
+            alt="Optivis Logo"
+            className="h-9 w-auto"
+          />
+          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">
+            Admin Console
+          </p>
+        </button>
       </div>
 
       <nav className="space-y-2">
@@ -137,7 +139,9 @@ function SidebarContent({ onNavigate }) {
   );
 }
 
-function Sidebar() {
+function Sidebar({ isDarkMode }) {
+  const navigate = useNavigate();
+
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
 
@@ -148,7 +152,7 @@ function Sidebar() {
   return (
     <>
       <aside className="hidden w-[260px] shrink-0 border-r border-slate-200 bg-white/80 px-5 py-6 backdrop-blur dark:border-slate-800 dark:bg-[#0B1220]/80 lg:block">
-        <SidebarContent />
+        <SidebarContent isDarkMode={isDarkMode}/>
       </aside>
 
       <div className="border-b border-slate-200 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-[#050817]/90 lg:hidden">
@@ -160,9 +164,13 @@ function Sidebar() {
           >
             <Menu className="h-4 w-4" />
           </button>
-          <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">
-            Admin Console
-          </p>
+          <button onClick={() => navigate("/admin/dashboard")}>
+            <img
+              src={isDarkMode ? "/images/optivis-logo-dark.png" : "/images/optivis-logo.png"}
+              alt="Optivis Logo"
+              className="h-9 w-auto"
+            />
+          </button>
         </div>
       </div>
 
@@ -184,7 +192,7 @@ function Sidebar() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <SidebarContent onNavigate={() => setIsOpen(false)} />
+            <SidebarContent onNavigate={() => setIsOpen(false)} isDarkMode={isDarkMode}/>
           </aside>
         </div>
       ) : null}
@@ -262,7 +270,7 @@ export function AdminPageLayout({
       />
 
       <div className="flex min-h-[calc(100vh-4rem)] flex-col lg:flex-row">
-        <Sidebar />
+        <Sidebar  isDarkMode={isDarkMode}/>
 
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">{children}</div>
