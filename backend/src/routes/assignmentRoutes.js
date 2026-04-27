@@ -4,6 +4,7 @@ import {
   getInsights,
   getMyAssignmentDetails,
   getMyAssignments,
+  getMyStreak,
   getSubmittedAssignments,
   reviewAssignment,
   submitCheckIn,
@@ -14,6 +15,7 @@ import roleMiddleware from "../middleware/roleMiddleware.js";
 const router = Router();
 
 router.get("/my", authMiddleware, roleMiddleware("EMPLOYEE"), getMyAssignments);
+router.get("/streak", authMiddleware, roleMiddleware("EMPLOYEE"), getMyStreak);
 router.get("/my/:assignmentId", authMiddleware, roleMiddleware("EMPLOYEE"), getMyAssignmentDetails);
 router.get("/insights", authMiddleware, roleMiddleware("ADMIN"), getInsights);
 router.get("/submitted", authMiddleware, roleMiddleware("ADMIN"), getSubmittedAssignments);

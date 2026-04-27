@@ -91,6 +91,63 @@ export const getMyAssignments = async (req, res) => {
   }
 };
 
+export const getMyStreak = async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (req.user.role !== "EMPLOYEE") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  try {
+    const assignments = await Assignment.find({
+      userId: req.user.userId || req.user._id,
+      workspaceId: req.user.workspaceId,
+      status: "SUBMITTED",
+    })
+      .select("submittedAt")
+      .sort({ submittedAt: -1 });
+
+    if (assignments.length === 0) {
+      return res.status(200).json({ currentStreak: 0 });
+    }
+
+    let streak = 0;
+    let previousSubmittedAt = null;
+
+    for (const assignment of assignments) {
+      const currentSubmittedAt = assignment.submittedAt
+        ? new Date(assignment.submittedAt)
+        : null;
+
+      if (!currentSubmittedAt || Number.isNaN(currentSubmittedAt.getTime())) {
+        continue;
+      }
+
+      if (!previousSubmittedAt) {
+        streak += 1;
+        previousSubmittedAt = currentSubmittedAt;
+        continue;
+      }
+
+      const diffMs = previousSubmittedAt.getTime() - currentSubmittedAt.getTime();
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+      if (diffDays <= 7) {
+        streak += 1;
+        previousSubmittedAt = currentSubmittedAt;
+      } else {
+        break;
+      }
+    }
+
+    return res.status(200).json({ currentStreak: streak });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 export const getMyAssignmentDetails = async (req, res) => {
   const { assignmentId } = req.params;
 

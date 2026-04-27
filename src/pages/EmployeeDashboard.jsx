@@ -599,7 +599,7 @@ function AllCheckIns({ submittedAssignments }) {
   );
 }
 
-function DashboardStats({ totalCompleted, progress }) {
+function DashboardStats({ totalCompleted, progress, currentStreak, isStreakLoading }) {
   return (
     <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="mb-6 flex items-center gap-2">
@@ -638,7 +638,7 @@ function DashboardStats({ totalCompleted, progress }) {
             <Zap className="h-5 w-5" />
           </div>
           <p className="text-2xl font-black text-slate-950 dark:text-white">
-            5 weeks
+            {isStreakLoading ? 'Loading...' : `${currentStreak} weeks`}
           </p>
         </div>
       </div>
@@ -649,7 +649,9 @@ function DashboardStats({ totalCompleted, progress }) {
 function EmployeeDashboard() {
   const location = useLocation();
   const [assignments, setAssignments] = useState([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isStreakLoading, setIsStreakLoading] = useState(true);
   const [displayName] = useState(() => getStoredUserName() || 'there');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === 'undefined') {
@@ -660,23 +662,29 @@ function EmployeeDashboard() {
   });
 
   useEffect(() => {
-    const fetchAssignments = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await api.get('/assignments/my', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setAssignments(response.data);
-      } catch (error) {
-        console.error(error.message);
-      } finally {
-        setLoading(false);
+    const fetchDashboardData = async () => {
+      const [assignmentsResult, streakResult] = await Promise.allSettled([
+        api.get('/assignments/my'),
+        api.get('/assignments/streak'),
+      ]);
+
+      if (assignmentsResult.status === 'fulfilled') {
+        setAssignments(assignmentsResult.value.data || []);
+      } else {
+        console.error(assignmentsResult.reason?.message || 'Failed to fetch assignments');
       }
+
+      if (streakResult.status === 'fulfilled') {
+        setCurrentStreak(streakResult.value.data?.currentStreak || 0);
+      } else {
+        console.error(streakResult.reason?.message || 'Failed to fetch streak');
+      }
+
+      setLoading(false);
+      setIsStreakLoading(false);
     };
 
-    fetchAssignments();
+    fetchDashboardData();
   }, []);
 
   useEffect(() => {
@@ -748,6 +756,8 @@ function EmployeeDashboard() {
                 <DashboardStats
                   totalCompleted={totalCompleted}
                   progress={progress}
+                  currentStreak={currentStreak}
+                  isStreakLoading={isStreakLoading}
                 />
               </div>
             )}
