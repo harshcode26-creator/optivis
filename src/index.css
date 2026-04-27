@@ -74,3 +74,144 @@ body {
     transform: translateY(0);
   }
 }
+
+.create-checkin-calendar {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: rgb(15 23 42);
+  font: inherit;
+}
+
+.create-checkin-calendar button {
+  margin: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.create-checkin-calendar .react-calendar__navigation {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.create-checkin-calendar .react-calendar__navigation button {
+  min-width: 2.75rem;
+  border-radius: 0.9rem;
+  background: rgb(255 255 255);
+  color: rgb(15 23 42);
+  font-weight: 800;
+  padding: 0.75rem 0.5rem;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.create-checkin-calendar .react-calendar__navigation button:enabled:hover,
+.create-checkin-calendar .react-calendar__navigation button:enabled:focus-visible,
+.create-checkin-calendar .react-calendar__tile:enabled:hover,
+.create-checkin-calendar .react-calendar__tile:enabled:focus-visible {
+  background: rgb(224 231 255);
+  color: rgb(79 70 229);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.create-checkin-calendar .react-calendar__month-view__weekdays {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.create-checkin-calendar .react-calendar__month-view__weekdays__weekday {
+  padding: 0.35rem 0;
+  color: rgb(100 116 139);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.create-checkin-calendar .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+
+.create-checkin-calendar .react-calendar__month-view__days,
+.create-checkin-calendar .react-calendar__year-view .react-calendar__year-view__months {
+  display: grid !important;
+  gap: 0.35rem;
+}
+
+.create-checkin-calendar .react-calendar__month-view__days {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.create-checkin-calendar .react-calendar__year-view .react-calendar__year-view__months {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.create-checkin-calendar .react-calendar__tile {
+  border-radius: 1rem;
+  color: rgb(15 23 42);
+  font-weight: 700;
+  min-height: 3rem;
+  padding: 0.8rem 0.4rem;
+  position: relative;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.create-checkin-calendar .react-calendar__month-view__days__day--neighboringMonth {
+  color: rgb(148 163 184);
+}
+
+.create-checkin-calendar .react-calendar__tile--now {
+  background: rgb(241 245 249);
+}
+
+.create-checkin-calendar .react-calendar__tile--active {
+  background: rgb(99 102 241);
+  color: rgb(255 255 255);
+}
+
+.create-checkin-calendar .create-checkin-calendar__week-range {
+  background: rgb(224 231 255);
+  color: rgb(67 56 202);
+}
+
+.create-checkin-calendar .create-checkin-calendar__week-selected,
+.create-checkin-calendar .create-checkin-calendar__week-range.react-calendar__tile--active {
+  background: rgb(99 102 241);
+  color: rgb(255 255 255);
+}
+
+.dark .create-checkin-calendar {
+  color: rgb(248 250 252);
+}
+
+.dark .create-checkin-calendar .react-calendar__navigation button {
+  background: rgb(15 23 42);
+  color: rgb(248 250 252);
+}
+
+.dark .create-checkin-calendar .react-calendar__navigation button:enabled:hover,
+.dark .create-checkin-calendar .react-calendar__navigation button:enabled:focus-visible,
+.dark .create-checkin-calendar .react-calendar__tile:enabled:hover,
+.dark .create-checkin-calendar .react-calendar__tile:enabled:focus-visible {
+  background: rgb(49 46 129);
+  color: rgb(224 231 255);
+}
+
+.dark .create-checkin-calendar .react-calendar__month-view__weekdays__weekday,
+.dark .create-checkin-calendar .react-calendar__month-view__days__day--neighboringMonth {
+  color: rgb(148 163 184);
+}
+
+.dark .create-checkin-calendar .react-calendar__tile {
+  color: rgb(248 250 252);
+}
+
+.dark .create-checkin-calendar .react-calendar__tile--now {
+  background: rgb(30 41 59);
+}
+
+.dark .create-checkin-calendar .create-checkin-calendar__week-range {
+  background: rgb(49 46 129);
+  color: rgb(224 231 255);
+}

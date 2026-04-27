@@ -1,7 +1,9 @@
 import {
   Bell,
+  ChevronDown,
   ClipboardList,
   LayoutDashboard,
+  LogOut,
   Menu,
   Moon,
   Plus,
@@ -12,38 +14,76 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
-function getStoredUserName() {
+function decodeStoredTokenPayload() {
+  const token = localStorage.getItem('token');
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const payload = token.split('.')[1];
+
+    if (!payload) {
+      return null;
+    }
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(normalizedPayload));
+  } catch {
+    return null;
+  }
+}
+
+function getStoredAdminProfile() {
   const userJson = localStorage.getItem('user');
   const storedName =
     localStorage.getItem('name') ||
     localStorage.getItem('userName') ||
     localStorage.getItem('username');
-
-  if (storedName) {
-    return storedName;
-  }
+  let displayName = storedName || '';
+  let role = '';
 
   if (userJson) {
     try {
       const user = JSON.parse(userJson);
-      return user.name || user.fullName || user.email || '';
+      displayName = displayName || user.name || user.fullName || user.email || '';
+      role = user.role || '';
     } catch {
-      return '';
+      role = '';
     }
   }
 
-  const token = localStorage.getItem('token');
+  if (!displayName || !role) {
+    const payload = decodeStoredTokenPayload();
 
-  if (!token) {
-    return '';
+    if (payload) {
+      displayName = displayName || payload.name || payload.fullName || payload.email || '';
+      role = role || payload.role || '';
+    }
   }
 
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.name || payload.fullName || payload.email || '';
-  } catch {
-    return '';
+  return {
+    displayName: displayName || 'Admin User',
+    role: String(role || 'ADMIN').toUpperCase(),
+  };
+}
+
+function clearStoredAuthData() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('name');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('username');
+}
+
+function logoutAndRedirect(navigate, onBeforeNavigate) {
+  if (onBeforeNavigate) {
+    onBeforeNavigate();
   }
+
+  clearStoredAuthData();
+  navigate('/login');
 }
 
 function ThemeToggle({ isDarkMode, onToggleDarkMode }) {
@@ -272,9 +312,13 @@ const navigationItems = [
 
 function SidebarContent({ onNavigate, isDarkMode  }) {
   const navigate = useNavigate();
-
-  const displayName = getStoredUserName() || 'Admin User';
+  const { displayName, role } = getStoredAdminProfile();
   const avatarLabel = displayName.trim().charAt(0).toUpperCase() || 'A';
+  const roleLabel = role === 'ADMIN' ? 'Admin' : role;
+
+  const handleLogout = () => {
+    logoutAndRedirect(navigate, onNavigate);
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -323,11 +367,25 @@ function SidebarContent({ onNavigate, isDarkMode  }) {
             <p className="truncate text-sm font-black text-slate-950 dark:text-white">
               {displayName}
             </p>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Super Admin
-            </p>
+            <div className="mt-1 flex items-center gap-2">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                {roleLabel}
+              </p>
+              <span className="inline-flex rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300">
+                {role}
+              </span>
+            </div>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-rose-200 hover:text-rose-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-rose-500/40 dark:hover:text-rose-300"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
       </div>
     </div>
   );
@@ -402,7 +460,42 @@ function AdminTopNavbar({
   ctaTo = '/admin/create-checkin',
   ctaIcon: CtaIcon = Plus,
 }) {
+  const { displayName, role } = getStoredAdminProfile();
   const navigate = useNavigate();
+  const dropdownRef = useRef(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const avatarLabel = displayName.trim().charAt(0).toUpperCase() || 'A';
+  const roleLabel = role === 'ADMIN' ? 'Admin' : role;
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return undefined;
+    }
+
+    const handleOutsideClick = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isProfileMenuOpen]);
+
+  const handleLogout = () => {
+    logoutAndRedirect(navigate, () => setIsProfileMenuOpen(false));
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-[#050817]/95">
@@ -427,6 +520,69 @@ function AdminTopNavbar({
             <CtaIcon className="h-4 w-4" />
             <span className="hidden sm:inline">{ctaLabel}</span>
           </button>
+
+          <div ref={dropdownRef} className="relative">
+            <button
+              type="button"
+              aria-label="Open admin profile menu"
+              aria-expanded={isProfileMenuOpen}
+              onClick={() => setIsProfileMenuOpen((currentState) => !currentState)}
+              className="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-1.5 py-1.5 text-slate-700 shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-500 dark:hover:text-indigo-300"
+            >
+              <div className="flex h-7 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-black text-indigo-600 transition duration-150 group-hover:scale-105 dark:bg-indigo-500/20 dark:text-indigo-300">
+                {avatarLabel}
+              </div>
+              <ChevronDown
+                className={`mr-1 hidden h-4 w-4 transition duration-150 sm:block ${
+                  isProfileMenuOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            <div
+              className={`absolute right-0 top-14 w-64 origin-top-right rounded-2xl border shadow-xl transition duration-150 ${
+                isProfileMenuOpen
+                  ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+                  : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
+              } ${
+                isDarkMode
+                  ? 'border-slate-700 bg-slate-900 text-white shadow-slate-950/40'
+                  : 'border-slate-200 bg-white text-slate-950 shadow-slate-900/10'
+              }`}
+            >
+              <div className="px-4 py-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-11 items-center justify-center rounded-full bg-indigo-100 text-sm font-black text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300">
+                    {avatarLabel}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black text-slate-950 dark:text-white">
+                      {displayName}
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                        Role: 
+                      </p>
+                      <span className="inline-flex rounded-full bg-indigo-100 px-1 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300">
+                        {role}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 px-2 py-2 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50 hover:text-rose-600 dark:text-slate-200 dark:hover:bg-slate-800/70 dark:hover:text-rose-300"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </nav>
     </header>

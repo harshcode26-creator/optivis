@@ -1,5 +1,6 @@
 import { CirclePlus, Eye, EyeOff, LoaderCircle, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Calendar from 'react-calendar';
 import { Navigate } from 'react-router-dom';
 import ConfirmModal from '../components/ConfirmModal';
 import { AdminPageLayout, StateCard, useDashboardTheme } from '../components/admin/AdminLayout';
@@ -7,13 +8,114 @@ import api from '../services/api';
 import { getUserFromToken } from '../utils/auth';
 
 const QUESTION_REMOVE_DELAY_MS = 180;
+const PREVIOUS_QUESTIONS_KEY = 'previousQuestions';
+const DEFAULT_QUESTIONS = [
+  'What did you accomplish this week?',
+  'What are your top priorities next week?',
+  'Any blockers or challenges?',
+  'What did you learn?',
+  'How are you feeling about your work?',
+];
 
-function createQuestionItem(value = '') {
+function createQuestionItem(value = '', options = {}) {
   return {
     id: `question-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     value,
     isRemoving: false,
+    isEntering: options.isEntering ?? false,
   };
+}
+
+function createQuestionItems(values) {
+  return values.map((value) => createQuestionItem(value));
+}
+
+function mergeQuestionValues(savedQuestions = []) {
+  const seenQuestions = new Set();
+
+  return [...DEFAULT_QUESTIONS, ...savedQuestions].reduce((mergedQuestions, question) => {
+    const normalizedQuestion = typeof question === 'string' ? question.trim() : '';
+
+    if (!normalizedQuestion) {
+      return mergedQuestions;
+    }
+
+    const questionKey = normalizedQuestion.toLowerCase();
+
+    if (seenQuestions.has(questionKey)) {
+      return mergedQuestions;
+    }
+
+    seenQuestions.add(questionKey);
+    mergedQuestions.push(normalizedQuestion);
+    return mergedQuestions;
+  }, []);
+}
+
+function getInitialQuestionValues() {
+  if (typeof window === 'undefined') {
+    return [...DEFAULT_QUESTIONS];
+  }
+
+  try {
+    const parsedQuestions = JSON.parse(window.localStorage.getItem(PREVIOUS_QUESTIONS_KEY));
+    const savedQuestions = Array.isArray(parsedQuestions) ? parsedQuestions : [];
+    const mergedQuestions = mergeQuestionValues(savedQuestions);
+    return mergedQuestions.length > 0 ? mergedQuestions : [...DEFAULT_QUESTIONS];
+  } catch {
+    return [...DEFAULT_QUESTIONS];
+  }
+}
+
+function startOfWeek(date) {
+  const nextDate = new Date(date);
+  const dayOfWeek = nextDate.getDay();
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+  nextDate.setHours(0, 0, 0, 0);
+  nextDate.setDate(nextDate.getDate() + diff);
+  return nextDate;
+}
+
+function endOfWeek(date) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + 6);
+  nextDate.setHours(23, 59, 59, 999);
+  return nextDate;
+}
+
+function isSameDay(firstDate, secondDate) {
+  return (
+    firstDate.getFullYear() === secondDate.getFullYear() &&
+    firstDate.getMonth() === secondDate.getMonth() &&
+    firstDate.getDate() === secondDate.getDate()
+  );
+}
+
+function formatWeekTitle(date) {
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatMonthTitle(date) {
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+  });
+}
+
+function buildAutoTitle(nextPeriod, date) {
+  if (!date) {
+    return '';
+  }
+
+  if (nextPeriod === 'MONTHLY') {
+    return `Monthly Check-in – ${formatMonthTitle(date)}`;
+  }
+
+  return `Week of ${formatWeekTitle(startOfWeek(date))}`;
 }
 
 function SuccessToast({ message }) {
@@ -93,7 +195,8 @@ function PreviewPanel({ isVisible, title, questions }) {
 function CreateCheckIn() {
   const [title, setTitle] = useState('');
   const [period, setPeriod] = useState('WEEKLY');
-  const [questions, setQuestions] = useState([createQuestionItem()]);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [questions, setQuestions] = useState(() => createQuestionItems(getInitialQuestionValues()));
   const [titleTouched, setTitleTouched] = useState(false);
   const [questionTouched, setQuestionTouched] = useState({});
   const [error, setError] = useState('');
@@ -131,6 +234,26 @@ function CreateCheckIn() {
     }
   }, [questions]);
 
+  useEffect(() => {
+    const enteringQuestionIds = questions
+      .filter((question) => question.isEntering)
+      .map((question) => question.id);
+
+    if (enteringQuestionIds.length === 0) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setQuestions((currentQuestions) =>
+        currentQuestions.map((question) =>
+          enteringQuestionIds.includes(question.id) ? { ...question, isEntering: false } : question,
+        ),
+      );
+    }, 20);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [questions]);
+
   if (user?.role !== 'ADMIN') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -144,11 +267,30 @@ function CreateCheckIn() {
   );
   const hasQuestionErrors = questionErrors.some(Boolean);
   const isFormInvalid = Boolean(titleError) || visibleQuestions.length === 0 || hasQuestionErrors;
+  const previewQuestions = visibleQuestions.map((question) => ({ ...question }));
 
-  const previewQuestions = useMemo(
-    () => visibleQuestions.map((question) => ({ ...question })),
-    [visibleQuestions],
-  );
+  const handlePeriodChange = (nextPeriod) => {
+    if (nextPeriod === period) {
+      return;
+    }
+
+    setPeriod(nextPeriod);
+
+    if (selectedDate) {
+      setTitle(buildAutoTitle(nextPeriod, selectedDate));
+    }
+  };
+
+  const handleDateChange = (nextValue) => {
+    const nextDate = Array.isArray(nextValue) ? nextValue[0] : nextValue;
+
+    if (!nextDate) {
+      return;
+    }
+
+    setSelectedDate(nextDate);
+    setTitle(buildAutoTitle(period, nextDate));
+  };
 
   const handleQuestionChange = (questionId, value) => {
     setQuestions((currentQuestions) =>
@@ -159,7 +301,7 @@ function CreateCheckIn() {
   };
 
   const handleAddQuestion = () => {
-    const nextQuestion = createQuestionItem();
+    const nextQuestion = createQuestionItem('', { isEntering: true });
     pendingFocusId.current = nextQuestion.id;
     setQuestions((currentQuestions) => [...currentQuestions, nextQuestion]);
     setQuestionTouched((currentTouched) => ({
@@ -192,10 +334,12 @@ function CreateCheckIn() {
   };
 
   const resetForm = () => {
-    const firstQuestion = createQuestionItem();
+    const nextQuestions = createQuestionItems(getInitialQuestionValues());
+    const [firstQuestion] = nextQuestions;
     setTitle('');
     setPeriod('WEEKLY');
-    setQuestions([firstQuestion]);
+    setSelectedDate(null);
+    setQuestions(nextQuestions);
     setTitleTouched(false);
     setQuestionTouched({});
     setShowPreview(false);
@@ -223,11 +367,19 @@ function CreateCheckIn() {
     setIsSubmitting(true);
 
     try {
+      const submittedQuestions = visibleQuestions.map((question) => question.value.trim());
+
       await api.post('/checkins/create', {
         title: trimmedTitle,
         period,
-        questions: visibleQuestions.map((question) => question.value.trim()),
+        questions: submittedQuestions,
       });
+
+      try {
+        window.localStorage.setItem(PREVIOUS_QUESTIONS_KEY, JSON.stringify(submittedQuestions));
+      } catch {
+        // Ignore localStorage failures so a successful create flow still completes.
+      }
 
       setSuccessMessage('Check-in created successfully');
       setIsConfirmOpen(false);
@@ -273,7 +425,7 @@ function CreateCheckIn() {
           </p>
 
           <form onSubmit={handleSubmitRequest} className="mt-6 space-y-5">
-            <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px]">
+            <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_260px]">
               <label className="block">
                 <span className="text-sm font-black text-slate-950 dark:text-white">Title</span>
                 <input
@@ -281,7 +433,9 @@ function CreateCheckIn() {
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   onBlur={() => setTitleTouched(true)}
-                  placeholder="Weekly Team Reflection"
+                  placeholder={
+                    period === 'MONTHLY' ? 'Monthly Check-in – April' : 'Week of April 27, 2026'
+                  }
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white dark:border-slate-700 dark:bg-slate-950/40 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-indigo-500 dark:focus:bg-slate-950"
                 />
                 {titleTouched && titleError ? (
@@ -293,15 +447,92 @@ function CreateCheckIn() {
 
               <label className="block">
                 <span className="text-sm font-black text-slate-950 dark:text-white">Period</span>
-                <select
-                  value={period}
-                  onChange={(event) => setPeriod(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-indigo-300 focus:bg-white dark:border-slate-700 dark:bg-slate-950/40 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-slate-950"
-                >
-                  <option value="WEEKLY">WEEKLY</option>
-                  <option value="MONTHLY">MONTHLY</option>
-                </select>
+                <div className="mt-2 inline-flex w-full rounded-2xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-950/50">
+                  {['WEEKLY', 'MONTHLY'].map((option) => {
+                    const isActive = period === option;
+
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => handlePeriodChange(option)}
+                        className={`flex-1 rounded-xl px-4 py-3 text-sm font-black transition-all duration-200 ${
+                          isActive
+                            ? 'scale-[1.02] bg-white text-indigo-600 shadow-sm dark:bg-slate-900 dark:text-indigo-300'
+                            : 'text-slate-500 hover:scale-[1.01] hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        {option === 'WEEKLY' ? 'Weekly' : 'Monthly'}
+                      </button>
+                    );
+                  })}
+                </div>
               </label>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-black text-slate-950 dark:text-white">
+                    {period === 'WEEKLY' ? 'Pick a week' : 'Pick a month'}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {period === 'WEEKLY'
+                      ? 'Choose any date to auto-title the check-in and highlight that full week.'
+                      : 'Choose a month to auto-title the monthly check-in.'}
+                  </p>
+                </div>
+                {selectedDate ? (
+                  <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300">
+                    {period === 'WEEKLY'
+                      ? `Week of ${formatWeekTitle(startOfWeek(selectedDate))}`
+                      : formatMonthTitle(selectedDate)}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="mt-4">
+                <Calendar
+                  calendarType="iso8601"
+                  className="create-checkin-calendar"
+                  onChange={handleDateChange}
+                  tileClassName={({ date, view }) => {
+                    if (period !== 'WEEKLY' || view !== 'month' || !selectedDate) {
+                      return null;
+                    }
+
+                    const weekStartDate = startOfWeek(selectedDate);
+                    const weekEndDate = endOfWeek(weekStartDate);
+                    const currentDate = new Date(date);
+                    currentDate.setHours(0, 0, 0, 0);
+
+                    if (currentDate < weekStartDate || currentDate > weekEndDate) {
+                      return null;
+                    }
+
+                    const classNames = ['create-checkin-calendar__week-range'];
+
+                    if (isSameDay(currentDate, weekStartDate)) {
+                      classNames.push('create-checkin-calendar__week-start');
+                    }
+
+                    if (isSameDay(currentDate, weekEndDate)) {
+                      classNames.push('create-checkin-calendar__week-end');
+                    }
+
+                    if (isSameDay(currentDate, selectedDate)) {
+                      classNames.push('create-checkin-calendar__week-selected');
+                    }
+
+                    return classNames.join(' ');
+                  }}
+                  value={selectedDate}
+                  view={period === 'MONTHLY' ? 'year' : 'month'}
+                  minDetail={period === 'MONTHLY' ? 'year' : 'month'}
+                  maxDetail={period === 'MONTHLY' ? 'year' : 'month'}
+                  showNeighboringMonth={period === 'WEEKLY'}
+                />
+              </div>
             </div>
 
             <div>
@@ -345,8 +576,10 @@ function CreateCheckIn() {
                       key={question.id}
                       className={`rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all duration-200 dark:border-slate-800 dark:bg-slate-950/40 ${
                         question.isRemoving
-                          ? 'pointer-events-none -translate-y-1 opacity-0'
-                          : 'translate-y-0 opacity-100'
+                          ? 'pointer-events-none -translate-y-1 scale-95 opacity-0'
+                          : question.isEntering
+                            ? 'translate-y-1 scale-95 opacity-0'
+                            : 'translate-y-0 scale-100 opacity-100'
                       }`}
                     >
                       <div className="flex gap-3">
