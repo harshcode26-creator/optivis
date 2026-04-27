@@ -215,13 +215,14 @@ export const getInsights = async (req, res) => {
 
   try {
     const { workspaceId } = req.user;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const [
       totalCheckInsCreated,
       totalAssignments,
       submittedCount,
       reviewedCount,
-      assignmentsWithBlockers,
+      submittedAssignmentsForBlockers,
       assignmentsWithSentiment,
     ] = await Promise.all([
       CheckIn.countDocuments({ workspaceId }),
@@ -230,7 +231,8 @@ export const getInsights = async (req, res) => {
       Assignment.countDocuments({ workspaceId, reviewStatus: "REVIEWED" }),
       Assignment.find({
         workspaceId,
-        blockerTags: { $exists: true, $ne: [] },
+        status: "SUBMITTED",
+        createdAt: { $gte: sevenDaysAgo },
       }).select("blockerTags"),
       Assignment.find({
         workspaceId,
@@ -238,18 +240,23 @@ export const getInsights = async (req, res) => {
       }).select("sentimentScore"),
     ]);
 
-    const blockerSummary = assignmentsWithBlockers
-      .flatMap((assignment) => assignment.blockerTags || [])
-      .reduce((summary, keyword) => {
-        const normalizedKeyword = String(keyword || "").trim().toLowerCase();
+    const allTags = [];
 
-        if (!normalizedKeyword) {
-          return summary;
-        }
+    submittedAssignmentsForBlockers.forEach((assignment) => {
+      if (assignment.blockerTags && assignment.blockerTags.length) {
+        allTags.push(...assignment.blockerTags);
+      }
+    });
 
-        summary[normalizedKeyword] = (summary[normalizedKeyword] || 0) + 1;
-        return summary;
-      }, {});
+    const normalizedTags = allTags
+      .map((tag) => String(tag || "").trim().toLowerCase())
+      .filter(Boolean);
+
+    const blockerSummary = {};
+
+    normalizedTags.forEach((tag) => {
+      blockerSummary[tag] = (blockerSummary[tag] || 0) + 1;
+    });
 
     const blockers = Object.keys(blockerSummary);
 

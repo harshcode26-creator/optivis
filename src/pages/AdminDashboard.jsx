@@ -70,7 +70,9 @@ function RecentSubmissionsTable({ assignments, onOpenAssignment }) {
   );
 }
 
-function TeamInsights({ blockers, summary }) {
+function TeamInsights({ blockerSummary, summary }) {
+  const blockerEntries = Object.entries(blockerSummary || {});
+
   return (
     <div className="space-y-6">
       <InsightCard title="Team Insights">
@@ -79,19 +81,19 @@ function TeamInsights({ blockers, summary }) {
             Active Blockers
           </p>
 
-          {blockers.length === 0 ? (
+          {blockerEntries.length === 0 ? (
             <div className="mt-4">
               <EmptyStateBox>No blockers reported.</EmptyStateBox>
             </div>
           ) : (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {blockers.map((blocker) => (
-                <span
+            <div className="mt-4 space-y-2">
+              {blockerEntries.map(([blocker, count]) => (
+                <p
                   key={blocker}
-                  className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold capitalize text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200"
+                  className="text-sm font-bold capitalize text-slate-700 dark:text-slate-200"
                 >
-                  {blocker}
-                </span>
+                  {blocker} - {count}
+                </p>
               ))}
             </div>
           )}
@@ -154,14 +156,6 @@ function AdminDashboard() {
       })),
     [submittedAssignments],
   );
-
-  const blockerItems = useMemo(() => {
-    if (Array.isArray(insights?.blockers) && insights.blockers.length > 0) {
-      return insights.blockers;
-    }
-
-    return Object.keys(insights?.blockerSummary || {});
-  }, [insights]);
 
   const sentimentDisplay = useMemo(
     () => getSentimentDisplay(Number(insights?.averageSentiment || 0)),
@@ -236,7 +230,7 @@ function AdminDashboard() {
 
           <section className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
             <TeamInsights
-              blockers={blockerItems}
+              blockerSummary={insights?.blockerSummary || {}}
               summary={insights?.summary || insights?.aiSummary}
             />
 
