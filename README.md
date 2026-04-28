@@ -8,8 +8,7 @@ It is designed for modern teams who want **visibility + accountability + simplic
 
 ## 🌐 Live Demo
 
-👉 Frontend: https://your-vercel-url.vercel.app
-👉 Backend API: https://optivis.onrender.com
+👉 http://optivis-delta.vercel.app
 
 ---
 
